@@ -16,7 +16,10 @@ Each skill is self-contained in its own folder and follows the standard layout:
 ```
 
 The frontmatter `description:` is what the runtime matches against to decide when to
-trigger the skill, so it doubles as the "when to use me" contract.
+trigger the skill, so it doubles as the "when to use me" contract. **Progressive
+disclosure** is the key idea: `SKILL.md` stays a lean orchestrator, and heavy detail
+lives in `references/` that the agent opens only when a given situation calls for it — so
+the skill can be deep without bloating every invocation.
 
 ---
 
@@ -39,42 +42,67 @@ plausible, and stops. Order66 counteracts that by making the agent review the sa
 from several incompatible viewpoints and **try to break its own conclusions before
 stating them**.
 
-It is a *quality + risk* tool, deliberately scoped:
+It is a *quality + risk* tool, deliberately scoped — for changes with real behavior or
+risk surface, not pure polish (formatting, renames, comments, routine dep bumps).
 
-- **Use it for** changes with real behavior or risk surface — logic, security boundaries,
-  concurrency, lifecycle, integrations, releases.
-- **Don't use it for** pure polish (formatting, renames, comments, routine dep bumps).
+### Core features
+
+- **A roster of reviewer personas**, each with one agenda and a *declared blind spot*, so
+  together they cover categories a single perspective structurally can't see:
+  - **5 core personas** — Adversary (abuse/security), Operator (failure/recovery),
+    Maintainer (clarity/simplification), Integrator (does the workflow actually ship?),
+    Machine (build/types/lint/test reality).
+  - **5 conditional personas** — Concurrency & Time, Performance, Data-Lifecycle,
+    Cross-Platform, Integration-Client — that fire **only** when their signal is present
+    in the diff.
+  - **The Skeptic** — a final pass that attacks the author's *and the reviewer's own*
+    assumptions.
+- **Two depths.** *Quick* (Adversary + Operator + Maintainer) for small/low-risk diffs;
+  *Full* (all five core) for user-facing, packaged, or security-sensitive changes. It
+  escalates Quick→Full automatically if a risk surfaces mid-review.
+- **Confidence labels** on every finding — *Confirmed* (read/ran it), *Suspected*
+  (pattern looks wrong), *Assumption* (relying on something unchecked).
+- **Severity model** P0–P3, plus **conditional severity** ("P0 if X, P1 otherwise; here's
+  the one check that decides").
+- **Shipped / Scaffolded / Planned / Blocked** classification so "there's a button"
+  isn't mistaken for "the workflow works."
+- **Cross-pass reconciliation** — surfaces tensions between personas (e.g. Adversary wants
+  more checks, Maintainer wants less code) instead of silently picking one.
+- **On-demand reference libraries** — `references/adversary-patterns.md` (bypass/injection
+  catalogues with a probe for each) and `references/calibration.md` (one finding worked
+  end-to-end to calibrate format and severity).
+- **Built-in anti-bloat guards** — it's a lens not a checklist, output is proportional, a
+  clean review is a valid result, and it won't manufacture findings to look busy.
 
 ### How it works
 
-1. **Pick a depth.** *Quick* (Adversary + Operator + Maintainer) for small/low-risk
-   diffs; *Full* (adds Integrator + Machine) for anything user-facing, packaged, or
-   security-sensitive.
-2. **Run persona passes.** Each persona is a reviewer with one agenda and a declared
-   blind spot, so they cover categories the others structurally can't see:
-   - **The Adversary** — "How do I abuse this?" (injection, auth, secrets, sandbox escapes)
-   - **The Operator** — "How does this fail, and can I recover?" (lifecycle, leaks, recovery)
-   - **The Maintainer** — "Can I safely change this?" (clarity, coupling, simplification)
-   - **The Integrator** — "Does the whole workflow actually ship?" (scaffold vs shipped)
-   - **The Machine** — "What does tooling say?" (build, types, lint, false-confidence tests)
-   - plus conditional personas (Concurrency, Performance, Data-Lifecycle, Cross-Platform,
-     Integration-Client) that fire only when their signal is present in the diff.
+1. **Pick a depth**, stated up front.
+2. **Run each persona pass:** adopt the identity, ask that persona's questions against the
+   actual code citing lines, apply disconfirmation, record findings with severity +
+   confidence, and note the blind spot the next persona must cover.
 3. **Disconfirm with a probe.** Where a cheap probe can settle a question — run the
-   payload, grep the definition, run the one test — it does that instead of arguing.
-   Observed evidence outranks a plausible argument.
-4. **Report proportionally.** Lead with a one-line verdict (depth, severity counts,
-   ship/don't-ship), then only the sections that carry weight. Findings are P0–P3 with
-   `file:line`, evidence, and a confidence label (Confirmed / Suspected / Assumption).
+   payload, grep the real definition, run the one test, print the actual value — it does
+   that instead of arguing. *Observed evidence outranks a plausible argument.*
+4. **Reconcile and report.** Lead with a one-line verdict (depth, severity counts,
+   ship/don't-ship), then only the sections that carry weight, each finding with
+   `file:line`, evidence, and a confidence label.
 
-It is built to avoid generating its own red tape: a clean review is a valid result, and a
-three-line diff never produces a seven-section report.
+### What makes it powerful
 
-### Reference libraries (loaded on demand)
-
-- `references/adversary-patterns.md` — high-yield bypass/injection/leakage classes, each
-  with a probe to confirm it. Opened when reviewing a security boundary.
-- `references/calibration.md` — one finding worked end-to-end, to calibrate format,
-  evidence standard, and conditional severity. A teaching aid, not a template.
+- **The adversarial multi-perspective design is the whole point.** A real security bypass
+  hides in code that reads as clean and well-tested — the Maintainer waves it through; the
+  Adversary, *whose only job is to abuse it*, catches it. No single reviewer mindset finds
+  everything, so the skill runs several on purpose.
+- **Disconfirmation + probe-over-argue turns review from opinion into evidence.** "Looks
+  fine" becomes "I built the input that should break it, ran it, and here's what
+  happened." Findings come back reproduced, not theorized.
+- **The honesty machinery prevents both ways an LLM reviewer fails.** Confidence labels +
+  conditional severity stop *over*claiming (no P0-for-drama); the "call it straight"
+  rule — be equally willing to clear a change or block it, never tune the verdict to what
+  the author seems to want — stops *under*claiming and rubber-stamping.
+- **Proportionality keeps it usable.** Because it refuses to generate its own red tape, you
+  can reach for it on a 10-line diff and get a one-line verdict, or on a release branch and
+  get a full audit — same skill, effort matched to the risk.
 
 ### Example triggers
 
@@ -89,37 +117,66 @@ three-line diff never produces a seven-section report.
 
 ### What it is
 
-Runs a Claude-first development session as a disciplined "Session Lead": paved-path, not
-red tape. It infers first, asks only high-impact questions, matches ceremony to the work,
-proves results with real commands ("lane evidence") rather than checklist ticks, and
-leaves a durable handoff for the next session.
+Runs a Claude-first development session as a disciplined "Session Lead": **paved-path, not
+red tape.** It infers first, asks only high-impact questions, matches ceremony to the
+work, proves results by running real commands ("lane evidence") rather than ticking a
+checklist, and leaves a durable handoff for the next session.
+
+### Core features
+
+- **Smart intake** — infers the session *mode* first (`orient`, `research`, `plan`,
+  `build`, `review`, `docs`, `release`, `onboarding`) and asks at most 2–3 questions, only
+  when an answer would change implementation, verification, risk, or ownership.
+- **Ceremony matching** — *fast lane* (trivial single-file: make the change, prove it,
+  stop) vs *full session* (substantial/risky/multi-session: logs, snapshots, durable
+  decisions). `context_pack.py` suggests the level; you start light and escalate.
+- **Lane evidence contracts** — per-lane proof requirements (`frontend`, `backend`, `mcp`,
+  `agentic`, `iot`, `ops-security`, `docs-product`), proven by **running the real
+  lint/test/build/smoke commands** via `verify.py`, not by asserting "tests pass."
+- **Profile-driven workflow truth** — `setup_profile.py` records non-secret facts (scale,
+  ownership, provider/branch, commands, CI, lanes, MCP trust) in
+  `.dev-session/profile.json` so behavior adapts per repo.
+- **Scale awareness** — on a solo repo (one contributor, no CODEOWNERS),
+  `workflow_doctor.py` skips team-ownership and CODEOWNERS checks so they never become
+  noise; flip the profile to `team` to enable them.
+- **Durable session memory** — `SESSION.md`, a daily log, `decisions.md`, `risks.md`, and
+  `backlog.md`, with thresholds so only meaningful decisions/risks get recorded.
+- **Provider safety** — reads/inspects GitHub/GitLab and prepares PR/MR bodies and
+  commands freely, but never posts, merges, deploys, or changes settings without explicit
+  confirmation.
+- **Secret hygiene** — `doctor.py` scans `.dev-session` content for leaked secrets/tokens
+  before they're committed.
+- **Agent orchestration** — `make_agent_prompt.py` mints scoped subagent prompts (role,
+  objective, owned scope, lane, evidence expectations) when delegation is authorized.
 
 ### How it works
 
-- **Fast lane vs full session.** Trivial single-file fixes get the fast lane (make the
-  change, prove it with `verify.py`, stop). Substantial/multi-file/risky work gets the
-  full session with logs, snapshots, and recorded decisions.
-- **Profile-driven.** `scripts/setup_profile.py` records non-secret workflow truth
-  (scale, ownership, provider/branch, commands, CI, lanes, MCP trust) in
-  `.dev-session/profile.json` so the workflow adapts to solo vs team repos.
-- **Paved path.** Orient → shape outcome + evidence contract → slice → build → prove with
-  lane evidence → review → compose PR/handoff → record only useful decisions/risks.
-- **Helpers.** `scripts/` holds the executable steps (`new_day_log.py`,
-  `session_snapshot.py`, `context_pack.py`, `verify.py`, `compose_pr.py`,
-  `make_agent_prompt.py`, `end_session.py`, `workflow_doctor.py`, …);
-  `references/` documents the playbooks (pipeline, feature lanes, provider workflows, MCP
-  profiles, agent roles, log format, secret patterns); `assets/` holds templates.
+The paved-path lifecycle: **orient** (read context pack, profile, session files, git +
+provider state, MCP readiness) → **shape** (mode, lane, outcome, evidence contract) →
+**slice** (small enough to review and roll back) → **build/research** (minimal useful
+tool + agent set) → **prove** (run `verify.py` for the lane's real commands) → **review**
+(correctness, security, maintainability, release readiness) → **ship/hand off** (compose
+PR/MR or handoff) → **learn** (record only durable decisions, risks, friction). The
+`scripts/` are the executable steps; `references/` document the playbooks; `assets/` hold
+templates.
 
-### Provider safety
+### What makes it powerful
 
-Reads/inspects GitHub/GitLab and prepares PR bodies and commands freely, but never posts,
-merges, deploys, or changes settings without explicit confirmation (unless the run grants
-autonomous action).
+- **Lane evidence is the anti-hand-waving core.** Work isn't "done" because the agent says
+  so — it's done when the lane's real commands ran and produced evidence. `verify.py`
+  executes them; the contract names what proof each kind of change requires (a migration
+  proves data-shape safety; an MCP change proves the client can load the tool).
+- **Ceremony and scale matching keep it from becoming process for its own sake.** A
+  one-line fix gets the fast lane; a solo repo never gets nagged about CODEOWNERS. The
+  rigor scales up only when the work's risk does.
+- **Durable handoffs make multi-session work resumable.** The next session (or the next
+  agent) starts from `SESSION.md` + logs + decisions instead of re-deriving context — and
+  only genuinely durable choices are recorded, so the trail stays signal-dense.
 
 ### Requirements
 
-Python 3.x on `PATH` (the scripts are plain Python, no third-party deps). The skill is
-written for the Claude Code runtime but the scripts run anywhere Python does.
+Python 3.x on `PATH` (the scripts are plain Python, no third-party deps). Written for the
+Claude Code runtime, but the scripts run anywhere Python does.
 
 ---
 
