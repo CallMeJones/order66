@@ -1,6 +1,6 @@
 ---
 name: Order66
-description: Use when reviewing code or recent changes for bugs, regressions, unsafe behavior, unnecessary complexity, duplicated behavior, over-engineering, unclear structure, and missing verification. Drives a multi-perspective audit in which the agent adopts a series of distinct reviewer identities — each with its own checklist and declared blind spot — and is required to disprove its own conclusions before reporting them. Preserves behavior; default to review mode unless fixes are requested.
+description: Use when someone wants code or a change vetted for what could go wrong before it ships — merging, opening a PR, deploying, or cutting a release. Trigger when the user is worried about risk — "is this safe to merge/ship?", "review this before release", "find anything dangerous/that could bite us", or asks to review, audit, or take a thorough look at a diff, PR, branch, migration, endpoint, feature flag, or config change. Especially for changes that touch data (migrations, drops, backfills, deletes, cache wipes), security, auth, concurrency, deploys, or integrations; for branches several people touched; and for code an agent or teammate wrote that they don't fully trust. The skill reviews from multiple independent angles and tries to disprove its own conclusions before reporting. Defaults to reviewing, not editing, unless fixes are requested. Skip purely cosmetic diffs with no behavior or risk surface — formatting, renames, comment-only edits, or routine dependency bumps.
 ---
 
 # Order 66 — Multi-Perspective Code Audit
@@ -12,20 +12,17 @@ and by forcing you to try to break your own conclusions before you state them.
 
 Default to review mode. Only implement fixes when the user asks.
 
-**This is a lens, not a checklist.** Apply the parts that fit the change in front of
-you; skip the rest. Every section below is permission to look, not an obligation to
-produce — the review must never cost more effort or output than the issue it prevents.
-When a part doesn't apply, drop it silently; don't write "N/A" or narrate what you
-skipped.
+**This is a lens, not a checklist.** Apply the parts that fit the change in front of you;
+skip the rest. Every section is permission to look, not an obligation to produce — drop what
+doesn't apply silently (no "N/A", no narrating what you skipped), and never spend more effort
+or output than the issue prevents. If a change has no behavior or risk surface (formatting, a
+rename, a comment, a routine dependency bump), skip Order66 or do a plain cleanup pass —
+pointing it at risk-free diffs is wasted motion.
 
-**Not for pure polish.** If a change has no behavior or risk surface — formatting, a
-rename, a comment, a routine dependency bump — skip Order66 or do a plain cleanup pass.
-This skill spends effort to find risk; pointing it at risk-free diffs is wasted motion.
+## Operating Principles
 
-## Operating Principles (read first — these prevent the common mistakes)
-
-These exist because an agent's default review failure is **confirmation bias**: it
-reads the code, finds it plausible, and stops. Counteract that directly.
+These counteract an agent's default review failure — **confirmation bias**: it reads the
+code, finds it plausible, and stops.
 
 1. **Disconfirm, don't confirm.** For anything that looks correct, your job is to
    construct the input, sequence, or environment that breaks it — *then* report
@@ -58,26 +55,24 @@ reads the code, finds it plausible, and stops. Counteract that directly.
    result.**
 10. **Probe over argue.** When a cheap probe can settle a question, run it instead of
     reasoning about it: execute the suspect input, grep for the real definition, run the
-    one test, print the actual value. Observed evidence outranks a plausible argument —
-    this is *how* principle 1 actually gets done. A finding you reproduced beats three
-    you theorized.
+    one test. Observed evidence outranks a plausible argument; a finding you reproduced
+    beats three you theorized.
 
 ## The Mistake Taxonomy (one scan before you finalize)
 
-Agents reliably make these. Give your draft a single scan against this list before
-reporting — once at the end, not per pass:
+Agents reliably make these. Scan your draft against this list once at the end, not per pass:
 
-- **Hallucinated existence** — referenced a function/field/flag/file without opening it.
-- **Confirmation read** — declared something safe without trying to break it.
+- **Hallucinated existence** — referenced a function/field/flag/file without opening it (OP4).
+- **Confirmation read** — declared something safe without trying to break it (OP1).
+- **Scaffold mistaken for ship** — "there is a control" treated as "the workflow works" (OP6).
+- **Premature success** — reported pass/done without naming what was actually run (OP7).
+- **Certainty inflation** — stated a Suspected/Assumption item as fact (OP3).
 - **Stale assumption** — reasoned from how the code "used to" work, or from a comment
   that no longer matches the code.
-- **Scaffold mistaken for ship** — "there is a control" treated as "the workflow works."
-- **Premature success** — reported pass/done without naming what was actually run.
 - **Simplification that changed behavior** — removed a branch, guard, or comment that
   encoded a real edge case or platform trap.
 - **Single-lens miss** — only reviewed for the obvious category (e.g. style) and never
   switched to security, concurrency, or ops.
-- **Certainty inflation** — stated a Suspected/Assumption item as fact.
 
 ## Non-Negotiables
 
@@ -87,13 +82,10 @@ reporting — once at the end, not per pass:
   anyone's feelings. (Order 66 has no sentiment.)
 - Findings first. Lead with bugs, regressions, unsafe behavior, broken tests, and
   release blockers, ordered by severity.
-- Cite exact files and lines for every finding.
-- Mark uncertain items "needs verification" and say what would prove or disprove them.
 - Do not simplify away platform traps, security boundaries, compatibility behavior,
   or comments that preserve hard-won context.
 - Distinguish bug fixes from cleanup. A simplification is not urgent unless it removes
   real risk.
-- Preserve user changes. Never recommend broad rewrites when a narrow fix suffices.
 
 ## Multi-Perspective Review
 
@@ -119,6 +111,8 @@ Pick the mode before you start, and say which one you ran in the output.
   cost-efficient default for small or low-risk diffs: a few files, no new entry points,
   no install/packaging/integration surface. The three core personas cover the highest-
   value categories (security, failure/recovery, maintainability) for the least tokens.
+  A genuinely trivial diff (one line, config, typo) gets a single proportional check —
+  not even the three-persona Quick parade.
 - **Full mode** — run all **5 core personas** (adds The Integrator and The Machine),
   plus Conditional personas, then The Skeptic. Use it whenever the diff touches a
   user-facing workflow, install/upgrade/packaging, CI, an external integration
@@ -136,12 +130,8 @@ or Machine lens clearly applies.
 3. **Apply disconfirmation** to anything that looks fine in that persona's domain.
 4. **Record findings** with severity + confidence label.
 5. **Note the blind spot** — what this persona can't catch, so the next one covers it.
-   This guides your own passes; it doesn't need to appear in the output unless it
-   leaves a category unexamined.
-
-Run the core personas your chosen depth selects (Quick = Adversary + Operator +
-Maintainer; Full = all five). Run a **Conditional** persona whenever its trigger
-signal is present in the diff, in either mode. Always finish with **The Skeptic**.
+   This guides your passes; surface it in output only when no persona covered a category
+   (an uncovered area — see Cross-Pass Reconciliation), not routinely.
 
 ### Core personas (always run)
 
@@ -197,33 +187,20 @@ signal is present in the diff, in either mode. Always finish with **The Skeptic*
 
 ### Conditional personas (run when the signal is present)
 
-- **The Concurrency & Time reviewer** — *signal:* threads, async/await, locks, shared
-  mutable state, timers, timestamps, timezones, ordering assumptions. Catches races,
-  deadlocks, blocking-in-async, stale state, off-by-one-clock, ordering bugs.
-- **The Performance Engineer** — *signal:* loops over collections, DB queries, network
-  in a loop, large inputs, hot paths. Catches N+1 queries, missing indexes, unbounded
-  result sets, accidental quadratic behavior, needless allocation; checks pathological
-  inputs, not just typical ones.
-- **The Data-Lifecycle reviewer** — *signal:* migrations, deletes/cascades, foreign
-  keys, background jobs writing shared rows. Catches orphan rows, cascade gaps, races
-  between jobs, irreversible migrations without backout.
-- **The Cross-Platform reviewer** — *signal:* paths, shell commands, URL openers,
-  autostart, hidden-file/permission semantics, executable names. Catches hard-coded
-  separators/paths, host-specific tools that vanish after a clean install, dev-server
-  or source-checkout / dependency-folder dependencies (e.g. `node_modules`, `.venv`,
-  vendored libs) in packaged apps. Do at least one
-  native check on the current OS; if a cross-target check fails before project code
-  compiles (missing compiler/SDK/linker), call it "toolchain blocked," not "passed."
-- **The Integration-Client reviewer** — *signal:* MCP servers, plugins, external API
-  clients, importers. Don't stop at "config has an entry" or "endpoint responds":
-  verify the consuming client can list/load it and complete one safe read-only call.
-  If the client blocks on approval/trust, classify config/load as shipped and the
-  tool-call approval path as manual smoke until an interactive run proves it. For
-  importers, separate generic file ingestion from schema-aware extraction — a
-  file-extension importer is not a domain-specific importer (for the records the
-  product actually claims to ingest) until fixture tests prove it extracts those
-  records; require at least one dry-run fixture and one idempotent non-dry-run smoke
-  before "shipped."
+Run any of these whose signal appears in the diff, in either depth. Open
+`references/conditional-personas.md` for each one's full Catches list and shipping rules —
+it holds load-bearing calibrations (Cross-Platform's "toolchain blocked, not passed" and the
+Integration-Client shipping contract) you must apply when that persona fires:
+
+- **Concurrency & Time** — *signal:* threads, async/await, locks, shared mutable state,
+  timers, timestamps, timezones, ordering assumptions.
+- **Performance** — *signal:* loops over collections, DB queries or network calls in a
+  loop, large inputs, hot paths.
+- **Data-Lifecycle** — *signal:* migrations, deletes/cascades, foreign keys, background
+  jobs writing shared rows.
+- **Cross-Platform** — *signal:* paths, shell commands, URL openers, autostart,
+  hidden-file/permission semantics, executable names, packaged-app dependencies.
+- **Integration-Client** — *signal:* MCP servers, plugins, external API clients, importers.
 
 ### The Skeptic (always last) — *"What did the author assume that isn't guaranteed?"*
 
@@ -245,8 +222,6 @@ For in-flight features, label every behavior:
 - **Blocked** — cannot ship without another component, external dependency, design
   decision, or manual smoke.
 
-This stops "there is a button/command/endpoint" from being read as "the workflow ships."
-
 ## Cross-Pass Reconciliation
 
 After all passes, reconcile conflicts instead of silently resolving them:
@@ -261,20 +236,10 @@ After all passes, reconcile conflicts instead of silently resolving them:
 
 ## Multi-Agent Use
 
-When multiple agents are working in parallel:
-
-- Each agent must state its owned files/modules before editing.
-- Each agent must avoid broad format churn outside its owned files.
-- Each agent should run this skill twice: once before editing to find likely release
-  blockers, and once after editing to report residual risks.
-- Final handoff must distinguish:
-  - issues fixed;
-  - tests run;
-  - tests not run;
-  - manual smoke still required;
-  - unrelated dirty files observed but not touched.
-- If two agents touch shared command wiring or shared API types, the integrator must
-  run a final combined check after both land.
+When multiple agents work in parallel, see `references/multi-agent.md` (declare owned files,
+no churn outside them, run this skill before and after editing, hand off with a
+fixed/tested/untested/smoke-required checklist, and run a combined integrator check when
+agents touch shared wiring or API types).
 
 ## Verification Contract
 
@@ -331,8 +296,6 @@ When the user asks to fix issues:
 - P3: Cleanup, naming, comments, duplication, or polish that does not block release.
 
 **Conditional severity.** When the severity hinges on a fact you haven't verified, state
-it as a conditional and name the *single check* that resolves it — e.g. "P0 if this path
-runs without authentication, P1 if an upstream gate always blocks it; resolved by reading
-how the caller guards it." Don't inflate to P0 for drama, and don't bury a
-real P0 behind hedging. If the deciding check is cheap, run it and commit to one severity.
-See `references/calibration.md` for a worked example.
+it as a conditional and name the *single check* that resolves it. Don't inflate to P0 for
+drama, and don't bury a real P0 behind hedging. If the deciding check is cheap, run it and
+commit to one severity. See `references/calibration.md` for a worked example.
