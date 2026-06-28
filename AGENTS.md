@@ -6,6 +6,7 @@ This repository is not a normal application codebase. It is a collection of Clau
 
 - `Order66/` — a multi-perspective code audit skill. It is a review lens, not a feature implementation. Use it when you want the agent to evaluate code changes from adversarial, operational, maintainer, integrator, and tooling perspectives.
 - `dev-session/` — a disciplined development session skill. It orchestrates intake, proof/evidence commands, handoff notes, and workflow checks for a development task.
+- `blender-production/` — a Blender production workflow skill (pure prose, no scripts). It drives the `blender` MCP server (Blender Agent Bridge) to build 3D/2D animation, models, simulations, and renders through a helper-first plan→preview→commit loop. Use it when the agent should create, animate, simulate, model, or render in Blender via the MCP tools.
 - `README.md` — the main overview and installation guidance for these skills.
 
 ## Key conventions
@@ -38,5 +39,7 @@ This repository is not a normal application codebase. It is a collection of Clau
 - `Order66/SKILL.md` — audit skill instructions
 - `dev-session/SKILL.md` — session skill instructions
 - `dev-session/references/` — detailed workflow and dev-session playbooks
+- `blender-production/SKILL.md` — Blender production workflow instructions
+- `blender-production/references/recipes.md` — per-domain Blender recipes
 
 This `AGENTS.md` file helps AI coding agents understand the repo's purpose and avoid treating it like a standard app repository.
