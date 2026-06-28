@@ -29,6 +29,7 @@ the skill can be deep without bloating every invocation.
 |-------|-----------|
 | [**Order66**](#order66--multi-perspective-code-audit) | A multi-perspective code audit: review a change from several adversarial points of view to find issues a single read misses. |
 | [**dev-session**](#dev-session) | Run a disciplined, Claude-first development session — intake, paved-path workflow, lane evidence, PR composition, and durable handoffs. |
+| [**blender-production**](#blender-production) | Drive the Blender Agent Bridge MCP to build professional 3D/2D work — animation, modeling, simulation, rendering — via a helper-first, plan→preview→commit workflow. |
 
 ---
 
@@ -180,6 +181,54 @@ Claude Code runtime, but the scripts run anywhere Python does.
 
 ---
 
+## blender-production
+
+### What it is
+
+A paved-path workflow for driving the **Blender Agent Bridge** MCP server (`blender`) to
+produce professional 3D and 2D work — animation, modeling, simulation, and rendering. The
+skill's value is *discipline*: the same tool surface can be poked at randomly or driven
+through a reliable loop, and this skill encodes the reliable loop so every Blender session
+follows it instead of improvising.
+
+### Core features
+
+- **The non-negotiable loop** — `blender_bridge_status` → `plan_advanced_scene_workflow` /
+  `plan_animation_workflow` (plan *before* mutating) → inspect → build with catalog helpers
+  (`search_blender_tools` → `get_blender_tool_schema` → `invoke_blender_tool`) → review with
+  `capture_animation_playblast` → `commit_preview` → `save_blend_file` → `start_render_job`.
+- **Helper-first, scripting last.** `draft_script` is reserved for genuine helper gaps; the
+  static denylist before `exec()` is treated as bypassable and restricted, so scripting is the
+  last resort, never the default.
+- **Safety rails** — user-confirmed paths for new-project/open/save-as, checkpoint-before-
+  destructive, one-transaction preview/commit discipline, and recover-don't-thrash handling of
+  bridge timeouts and long-running bakes/renders.
+- **Verified gotchas baked in** — the camera-view playblast trap, default-Cube cleanup,
+  Blender 5.1 slotted-action (channelbag) API change, Mantaflow gas-bake OOM, and
+  `draft_script` trust limits — so the agent avoids the failures the hard way once.
+- **Domain recipes** (`references/recipes.md`) — ordered helper sequences with sensible defaults
+  for full professional animation, procedural 3D objects, simulation, and rendering.
+
+### How it works
+
+`SKILL.md` is the lean orchestrator (the loop + hard rules + gotchas); `references/recipes.md`
+holds the per-domain sequences, opened only when a given task calls for them. The skill assumes
+the `blender` MCP server is connected and its localhost bridge is running.
+
+### Requirements
+
+The `blender` MCP server (Blender Agent Bridge add-on) installed in Blender with the bridge
+started. No scripts or Python deps of its own — it is pure prose that drives MCP tools.
+
+### Example triggers
+
+- "Make a storyboard animatic with panels, cutout layers, and a camera dolly"
+- "Build a procedural 3D object and give me a turntable render"
+- "Set up a smoke sim and bake it"
+- "Render this scene to a 1080p MP4"
+
+---
+
 ## Installation
 
 A skill becomes active by living in a directory your runtime scans. Install = copy (or
@@ -194,6 +243,7 @@ symlink) the skill folder into that directory.
 # Copy
 cp -r Order66 ~/.claude/skills/
 cp -r dev-session ~/.claude/skills/
+cp -r blender-production ~/.claude/skills/
 
 # …or symlink so edits here stay live (recommended while iterating)
 ln -s "$(pwd)/Order66" ~/.claude/skills/Order66
@@ -232,9 +282,12 @@ per-repo state on first run via `setup_profile.py`.
 ├── Order66/
 │   ├── SKILL.md
 │   └── references/{adversary-patterns,calibration}.md
-└── dev-session/
+├── dev-session/
+│   ├── SKILL.md
+│   ├── references/*.md
+│   ├── scripts/*.py
+│   └── assets/*.md
+└── blender-production/
     ├── SKILL.md
-    ├── references/*.md
-    ├── scripts/*.py
-    └── assets/*.md
+    └── references/recipes.md
 ```

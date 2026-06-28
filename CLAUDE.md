@@ -12,13 +12,17 @@ When asked "what does X do?", explain the skill's intent and structure — do no
 user-facing app feature. Do not add unrelated runtime code at the repo root; extend the
 existing skill directories.
 
-Two skills live here:
+Three skills live here:
 - **`Order66/`** — a multi-perspective code-audit *lens* (pure prose, no scripts). Makes
   the agent review a diff from several adversarial reviewer personas and disprove its own
   conclusions before reporting.
 - **`dev-session/`** — a disciplined development-session orchestrator (prose + Python
   helper scripts). Runs "paved-path" sessions: intake, lane-evidence proof, PR composition,
   durable handoffs.
+- **`blender-production/`** — a paved-path workflow for the `blender` MCP server (Blender
+  Agent Bridge); pure prose, no scripts. Drives 3D/2D animation, modeling, simulation, and
+  rendering through a plan→inspect→helper→preview→commit→save→render loop, with verified
+  gotchas and per-domain recipes in `references/`.
 
 `README.md` is the human-facing overview/install guide; `AGENTS.md` is the cross-runtime
 agent guide. Both overlap heavily with this file — keep the three consistent when editing.
